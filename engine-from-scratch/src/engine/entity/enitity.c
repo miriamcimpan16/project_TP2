@@ -7,6 +7,12 @@ static Array_List *entity_list;
 void entity_init(void) {
 	entity_list = array_list_create(sizeof(Entity), 0);
 }
+void entity_deactivate(usize id) {
+    Entity *entity = entity_get(id);
+    if (entity != NULL) {
+        entity->is_active = false;
+    }
+}
 
 usize entity_create(vec2 position, vec2 size, vec2 sprite_offset, vec2 velocity, u8 collision_layer, u8 collision_mask, bool is_kinematic, usize animation_id, On_Hit on_hit, On_Hit_Static on_hit_static) {
 	usize id = entity_list->len;

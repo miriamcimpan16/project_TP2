@@ -22,6 +22,7 @@ usize entity_count(void);
 void entity_reset(void);
 Entity *entity_by_body_id(usize body_id);
 usize entity_id_by_body_id(usize body_id);
+void entity_deactivate(usize id);
 
 // Returns true if the enemy dies.
 bool entity_damage(usize entity_id, u8 amount);

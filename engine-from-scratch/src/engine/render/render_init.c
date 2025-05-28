@@ -9,6 +9,9 @@
 #include "render_internal.h"
 
 
+
+
+
 SDL_Window *render_init_window(u32 width, u32 height) {
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
@@ -44,11 +47,20 @@ SDL_Window *render_init_window(u32 width, u32 height) {
 	return window;
 }
 
-void render_init_shaders(u32 *shader_default, u32 *shader_batch, f32 render_width, f32 render_height) {
+
+
+
+
+
+
+
+
+
+void render_init_shaders(u32 *shader_default, u32 *shader_batch,f32 render_width, f32 render_height) {
 	mat4x4 projection;
 	*shader_default = render_shader_create("./shaders/default.vert", "./shaders/default.frag");
 	*shader_batch = render_shader_create("./shaders/batch_quad.vert", "./shaders/batch_quad.frag");
-
+    
 	mat4x4_ortho(projection, 0, render_width, 0, render_height, -2, 2);
 
 	glUseProgram(*shader_default);
@@ -72,6 +84,8 @@ void render_init_shaders(u32 *shader_default, u32 *shader_batch, f32 render_widt
         sprintf(name, "texture_slot_%u", i);
         glUniform1i(glGetUniformLocation(*shader_batch, name), i);
     }
+	
+  
 }
 
 void render_init_color_texture(u32 *texture) {

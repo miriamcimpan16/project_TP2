@@ -6,7 +6,7 @@
 #define SDL_MAIN_HANDLED
 #include <SDL2/SDL.h>
 
-
+#include <SDL2/SDL_mixer.h>
 #include "engine/global.h"
 #include "engine/config.h"
 #include "engine/input.h"
@@ -16,11 +16,14 @@
 #include "engine/entity.h"
 #include "engine/render/render.h"
 #include "engine/animation.h"
+#include "engine/audio.h"
+#include<ft2build.h>
+#include FT_FREETYPE_H
 
 
 void reset(void);
 static int score = 0;
-static const f32 SPEED_GROUND = 200.0f;  // Viteza fundalului
+static const f32 SPEED_GROUND = 200.0f;  
 static f32 ground_offset = 0.0f;         // Offset pe axa X
 static bool is_game_over = false;
 static const f32 GROUNDED_TIME = 0.1f;
@@ -30,6 +33,12 @@ static const f32 SPEED_ENEMY_LARGE = 80;
 static const f32 SPEED_ENEMY_SMALL = 100;
 static const f32 HEALTH_ENEMY_LARGE = 7;
 static const f32 HEALTH_ENEMY_SMALL = 3;
+static Mix_Chunk *SOUND_PLAYER_DEATH;
+static Mix_Chunk *SOUND_JUMP;
+static Mix_Music *MUSIC_STAGE_1;
+static f32 total_time = 0.0f;
+static bool is_night = false;
+
 
 typedef enum collision_layer {
 	COLLISION_LAYER_PLAYER = 1,
@@ -89,11 +98,11 @@ static void input_handle(Body *body_player) {
 	f32 velx = 0;
 	f32 vely = body_player->velocity[1];
 
-	
 
 	if (global.input.up && player_is_grounded) {
 		player_is_grounded = false;
 		vely = JUMP_VELOCITY;
+		audio_sound_play(SOUND_JUMP);
 		
 	}
 
@@ -108,7 +117,7 @@ void player_on_hit(Body *self, Body *other, Hit hit) {
 		is_game_over = true;
 	}
 }
-#define PLAYER_VISUAL_OFFSET_Y 4.0f // sau cât ai nevoie
+#define PLAYER_VISUAL_OFFSET_Y 4.0f 
 
 
 		void player_on_hit_static(Body *self, Static_Body *other, Hit hit) {
@@ -124,60 +133,27 @@ void player_on_hit(Body *self, Body *other, Hit hit) {
 				self->velocity[1] = 0;
 			}
 		}
+
+
+
 		
 	
 
-/*
-void enemy_small_on_hit_static(Body *self, Static_Body *other, Hit hit) {
-    Entity *entity = entity_get(self->entity_id);
 
-	if (hit.normal[0] > 0) {
-        if (entity->is_enraged) {
-            self->velocity[0] = SPEED_ENEMY_SMALL * 1.5f;
-        } else {
-            self->velocity[0] = SPEED_ENEMY_SMALL;
-        }
-	}
 
-	if (hit.normal[0] < 0) {
-        if (entity->is_enraged) {
-            self->velocity[0] = -SPEED_ENEMY_SMALL * 1.5f;
-        } else {
-            self->velocity[0] = -SPEED_ENEMY_SMALL;
-        }
-	}
-}
 
-void enemy_large_on_hit_static(Body *self, Static_Body *other, Hit hit) {
-    Entity *entity = entity_get(self->entity_id);
 
-	if (hit.normal[0] > 0) {
-        if (entity->is_enraged) {
-            self->velocity[0] = SPEED_ENEMY_LARGE * 1.5f;
-        } else {
-            self->velocity[0] = SPEED_ENEMY_LARGE;
-        }
-	}
-
-	if (hit.normal[0] < 0) {
-        if (entity->is_enraged) {
-            self->velocity[0] = -SPEED_ENEMY_LARGE * 1.5f;
-        } else {
-            self->velocity[0] = -SPEED_ENEMY_LARGE;
-        }
-	}
-}*/
 
 void spawn_cactus() {
     // Coordonatele pentru platformă
     f32 platform_y = 155.0f; // Y-ul centrului platformei (unde se află dinozaurul)
 	
-    // Distanta random pentru a spawn-a cactusul pe platformă
-    f32 spawn_x = render_width;  // Apare puțin în afara ecranului, în dreapta și are un offset aleatoriu pe X
-	//if (spawn_x < render_width)
-	//spawn_x = render_width + (rand() % 50);
+    
+    f32 spawn_x = render_width;  
+	
+	
     vec2 size = {10, 10};  // Dimensiunile cactusului
-   // vec2 position = {spawn_x, platform_y};  // Poziția în funcție de platformă (sunt poziționați pe aceeași linie Y ca dinozaurul)
+   
    vec2 position = {render_width-90, platform_y - 30/ 2.0f};
 
 
@@ -193,7 +169,7 @@ if (rand() % 2 == 0) {
     animation_id = anim_enemy_large_id; // cactus mare
 }
  // Viteza cactusului (se mișcă spre stânga)
-   // usize animation_id = anim_enemy_large_id; // Poți folosi aceeași animație pentru cactus
+   
 
     // Creează cactusul ca entitate
     entity_create(
@@ -216,6 +192,7 @@ if (rand() % 2 == 0) {
 
 
 void reset(void) {
+	   audio_music_play(MUSIC_STAGE_1);
    
     input_update();
     physics_reset();
@@ -224,37 +201,23 @@ void reset(void) {
 
     ground_timer = 0;
     spawn_timer = 0;
-    f32 platform_top = 133 + 40 / 2.0f;  // 153
+    f32 platform_top = 133 + 40 / 2.0f;  
 f32 player_height = 24;
 
-f32 player_y = platform_top + player_height / 2.0f;  // 153 + 12 = 165
+f32 player_y = platform_top + player_height / 2.0f;  
 
 player_id = entity_create((vec2){100, player_y}, (vec2){24, 24}, (vec2){0, 0}, (vec2){0, 0}, COLLISION_LAYER_PLAYER, player_mask, false, (usize)-1, player_on_hit, player_on_hit_static);
 
 
-	//player_id = entity_create((vec2){100, render_height-80}, (vec2){24, 24}, (vec2){0, 0}, (vec2){0, 0}, COLLISION_LAYER_PLAYER, player_mask, false, (usize)-1, player_on_hit, player_on_hit_static);
-
+	
     // Init level.
 	{
 		
 		
 
-       // physics_static_body_create(position, size, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){render_width/2.0f, render_height - 10}, (vec2){render_width, 64}, COLLISION_LAYER_TERRAIN);
+       
 		physics_static_body_create((vec2){200, 133}, (vec2){800, 40}, COLLISION_LAYER_TERRAIN);
-        //physics_static_body_create((vec2){render_width / 0.0f, render_height - 150}, (vec2){58, 93}, COLLISION_LAYER_TERRAIN);
-        //physics_static_body_create((vec2){render_width * 3.0f / 4.0f, render_height - 250}, (vec2){58, 93}, COLLISION_LAYER_TERRAIN);
         
-		//physics_static_body_create((vec2){render_width * 0.25 - 16, 16}, (vec2){render_width * 0.5 - 32, 48}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){render_width * 0.75 + 16, 16}, (vec2){render_width * 0.5 - 32, 48}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){16, render_height * 0.5 - 3 * 32}, (vec2){32, render_height}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){render_width - 16, render_height * 0.5 - 3 * 32}, (vec2){32, render_height}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){32 + 64, render_height - 32 * 3 - 16}, (vec2){128, 32}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){render_width - 32 - 64, render_height - 32 * 3 - 16}, (vec2){128, 32}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){render_width * 0.5, render_height - 32 * 3 - 16}, (vec2){192, 32}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){render_width * 0.5, 32 * 3 + 24}, (vec2){448, 32}, COLLISION_LAYER_TERRAIN);
-		//physics_static_body_create((vec2){16, render_height - 64}, (vec2){32, 64}, COLLISION_LAYER_ENEMY_PASSTHROUGH);
-		//physics_static_body_create((vec2){render_width - 16, render_height - 64}, (vec2){32, 64}, COLLISION_LAYER_ENEMY_PASSTHROUGH);
         
         
 	}
@@ -265,15 +228,25 @@ player_id = entity_create((vec2){100, player_y}, (vec2){24, 24}, (vec2){0, 0}, (
 
 
 int main(int argc, char *argv[]) {
+	
 	time_init(60);
 	SDL_Window *window = render_init();
 	config_init();
 	physics_init();
 	entity_init();
 	animation_init();
-	//render_init_freetype();
+	audio_init();
 	
 
+
+
+
+	
+
+	
+    audio_sound_load(&SOUND_JUMP,"C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/jump.wav");
+	audio_sound_load(&SOUND_PLAYER_DEATH, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/player_death.wav");
+	audio_music_load(&MUSIC_STAGE_1, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/breezys_mega_quest_2_stage_1.mp3");
 	
 	
 
@@ -286,13 +259,18 @@ int main(int argc, char *argv[]) {
 	Sprite_Sheet sprite_sheet_map;
 	Sprite_Sheet sprite_sheet_enemy_small;
 	Sprite_Sheet sprite_sheet_enemy_large;
-    Sprite_Sheet font_sprite_sheet;
+    Sprite_Sheet gv_sprite_sheet;
+    Sprite_Sheet start_sprite_sheet;
    
 	render_sprite_sheet_init(&sprite_sheet_player, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/dino5.png", 33, 36);
     render_sprite_sheet_init(&sprite_sheet_map, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/ground4.png", window_width, window_height);
     render_sprite_sheet_init(&sprite_sheet_enemy_small, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/cactus4.png", 26, 40);
     render_sprite_sheet_init(&sprite_sheet_enemy_large, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/cactus12.png", 20, 40);
-    render_sprite_sheet_init(&font_sprite_sheet, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/font.jpg", 422, 182);
+    render_sprite_sheet_init(&gv_sprite_sheet, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/gameover2.png", 400, 272);
+    render_sprite_sheet_init(&start_sprite_sheet, "C:/Users/Deborah/OneDrive/Desktop/project/engine-from-scratch/src/engine/assets/start2.png",400,262);
+	
+	
+    
 
 	usize adef_player_walk_id = animation_definition_create(&sprite_sheet_player, 0.1, 0, (u8[]){0,1,2}, 3);
 	usize adef_player_idle_id = animation_definition_create(&sprite_sheet_player, 0, 0, (u8[]){0}, 1);
@@ -307,15 +285,33 @@ int main(int argc, char *argv[]) {
     anim_enemy_large_id = animation_create(adef_enemy_large_id, true);
     anim_enemy_small_enraged_id = animation_create(adef_enemy_small_enraged_id, true);
     anim_enemy_large_enraged_id = animation_create(adef_enemy_large_enraged_id, true);
+    // start
+    usize adef_start_animation_id = animation_definition_create(&start_sprite_sheet, 0.5, 0, (u8[]){0}, 1);
+    usize anim_start_screen_id = animation_create(adef_start_animation_id, true);
+
+	//game over
+	 usize adef_gv_animation_id = animation_definition_create(&gv_sprite_sheet, 0.5, 0, (u8[]){0}, 1);
+    usize anim_gv_screen_id = animation_create(adef_gv_animation_id, true);
+
 
    
 
-    
+    bool waiting_to_start = true;
 	f32 spawn_timer_cactus = 0;
     reset();
+	srand(time(NULL));
+
 
 	while (!should_quit) {
 		time_update();
+		total_time += global.time.delta;
+        // Fiecare 40 de secunde schimbă starea zi/noapte
+        if (((int)(total_time / 20)) % 2 == 0) {
+        is_night = false;  // zi
+        } else {
+        is_night = true;   // noapte
+        }
+
 
 		SDL_Event event;
 
@@ -328,7 +324,38 @@ int main(int argc, char *argv[]) {
 				break;
 			}
 		}
+        if(waiting_to_start == true){
+            input_update();
+			if (global.input.up) {
+				waiting_to_start = false;
+				
+			}
+			
+            animation_update(global.time.delta);
+			render_begin();
+			
+            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
+
+			
+            
+            glClear(GL_COLOR_BUFFER_BIT);
+			
+
+			
+           vec2 center = {render_width / 2.0f, render_height / 2.0f};
+
+         render_sprite_sheet_frame(&start_sprite_sheet, 0, 0, center, false, WHITE, texture_slots);
+         animation_render(animation_get(anim_start_screen_id), center, WHITE, texture_slots);
+
+
+           
+	       render_end(window, texture_slots);
+          
+           time_update_late();
+            continue;
+
+        }
         
         spawn_timer -= global.time.delta;
         ground_timer -= global.time.delta;
@@ -339,28 +366,59 @@ int main(int argc, char *argv[]) {
 		if (player_is_grounded) {
 			player->animation_id = anim_player_walk_id;  // Setează animația de mers tot timpul
 		} else {
-			player->animation_id = anim_player_idle_id;  // Poți folosi idle sau orice altă animație pentru sărit
+			player->animation_id = anim_player_idle_id; 
 		}
+		
+        
 		
 		if (is_game_over) {
 			
 			
 			input_update();
+			
+
 			if (global.input.escape) {
 				should_quit = true;
 				
 			}
+			if(global.input.up){
+				is_game_over = false;
+                reset();
+                continue;
+
+			}
 			player->animation_id = anim_player_idle_id;
+			
 			render_begin();
-			render_game_over(font_sprite_sheet,texture_slots);
-	        render_end(window, texture_slots);
+			animation_update(global.time.delta);
+			render_begin();
+			
+            glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+
+			
+            
+            glClear(GL_COLOR_BUFFER_BIT);
+			
+
+			
+           vec2 center = {render_width / 2.0f, render_height / 2.0f};
+
+           render_sprite_sheet_frame(&gv_sprite_sheet, 0, 0, center, false, WHITE, texture_slots);
+            animation_render(animation_get(anim_gv_screen_id), center, WHITE, texture_slots);
+
+			
+			
+			
+			
+			
+	       render_end(window, texture_slots);
            time_update_late();
             continue;
 			
 		}else{
 		
 	   
-       score++;
 		input_update();
 		input_handle(body_player);
 		physics_update();
@@ -369,8 +427,9 @@ int main(int argc, char *argv[]) {
 
 		// Spawn enemies.
 		{
+			
 			if (spawn_timer <= 0) {
-				spawn_timer = (f32)((rand() % 200) + 200) / 100.f;
+				spawn_timer = (f32)((rand() % 200) + 100) / 100.f;
 
 				
 				
@@ -384,12 +443,20 @@ int main(int argc, char *argv[]) {
 	}
         
 		render_begin();
-		glClearColor(1.0f, 1.0f, 1.0f, 1.0f); // alb RGBA
+		if (is_night) {
+    // Culoare închisă pentru noapte (de exemplu un albastru închis)
+    glClearColor(0.05f, 0.05f, 0.2f, 1.0f);
+} else {
+    // Culoarea de zi actuală (aer liber, cyan deschis)
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+}
         glClear(GL_COLOR_BUFFER_BIT);
+		
+
 		// Viteza la care se mișcă fundalul
 
-  // În funcția main, actualizează poziția fundalului
- ground_offset -= (SPEED_GROUND+(score/50)) * global.time.delta;  // Mișcă fundalul spre stânga
+  
+ ground_offset -= (SPEED_GROUND+(score/50)) * global.time.delta; 
 
 // Când fundalul iese din fereastră, îl resetăm
 if (ground_offset <= -render_width) {
@@ -401,9 +468,6 @@ render_sprite_sheet_frame(&sprite_sheet_map, 0, 0, (vec2){ground_offset, render_
 render_sprite_sheet_frame(&sprite_sheet_map, 0, 0, (vec2){ground_offset + render_width, render_height - 64}, false, WHITE, texture_slots);
 
 
-
-        // Render terrain/map.
-        //render_sprite_sheet_frame(&sprite_sheet_map, 0, 0, (vec2){render_width / 2.0, render_height-10}, false, (vec4){1, 1, 1, 1}, texture_slots);
 
         // Debug render bounding boxes.
         {
@@ -445,18 +509,19 @@ render_sprite_sheet_frame(&sprite_sheet_map, 0, 0, (vec2){ground_offset + render
             animation_render(anim, pos, WHITE, texture_slots);
 		}
 		
-      
-       
-		
-		
-		render_end(window, texture_slots);
+
+        
+
+
+        
+        render_end(window, texture_slots);
 
 		time_update_late();
-		
+		    
 	
 	}
-	printf("Scorul este %d",score);
-	//render_cleanup_freetype();
+	
+	
 	return 0;
 		
 

@@ -14,15 +14,26 @@ uniform sampler2D texture_slot_5;
 uniform sampler2D texture_slot_6;
 uniform sampler2D texture_slot_7;
 
-void main() {
-    switch (v_texture_slot) {
-        case 0: o_color = texture(texture_slot_0, v_uvs) * v_color; break;
-        case 1: o_color = texture(texture_slot_1, v_uvs) * v_color; break;
-        case 2: o_color = texture(texture_slot_2, v_uvs) * v_color; break;
-        case 3: o_color = texture(texture_slot_3, v_uvs) * v_color; break;
-        case 4: o_color = texture(texture_slot_4, v_uvs) * v_color; break;
-        case 5: o_color = texture(texture_slot_5, v_uvs) * v_color; break;
-        case 6: o_color = texture(texture_slot_6, v_uvs) * v_color; break;
-        case 7: o_color = texture(texture_slot_7, v_uvs) * v_color; break;
+vec4 sample_texture(int slot, vec2 uv) {
+    vec4 tex_color = vec4(1.0);
+    if (slot == 0) tex_color = texture(texture_slot_0, uv);
+    else if (slot == 1) tex_color = texture(texture_slot_1, uv);
+    else if (slot == 2) tex_color = texture(texture_slot_2, uv);
+    else if (slot == 3) tex_color = texture(texture_slot_3, uv);
+    else if (slot == 4) tex_color = texture(texture_slot_4, uv);
+    else if (slot == 5) tex_color = texture(texture_slot_5, uv);
+    else if (slot == 6) tex_color = texture(texture_slot_6, uv);
+    else if (slot == 7) tex_color = texture(texture_slot_7, uv);
+
+    // Dacă textura are doar canalul R (text/font), tratăm ca alpha
+    if (tex_color.g == 0.0 && tex_color.b == 0.0) {
+        return vec4(v_color.rgb, v_color.a * tex_color.r);
     }
+
+    return tex_color * v_color;
 }
+
+void main() {
+    o_color = sample_texture(v_texture_slot, v_uvs);
+}
+

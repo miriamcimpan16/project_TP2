@@ -7,8 +7,8 @@
 static const char *CONFIG_DEFAULT =
 	"[controls]\n"
 	"up = Space\n"
-	"down = S\n"
 	"escape = Escape\n"
+	
 	"\n";
 
 static char tmp_buffer[20] = {0};
@@ -45,6 +45,7 @@ static void load_controls(const char *config_buffer) {
 	
 	config_key_bind(INPUT_KEY_UP, config_get_value(config_buffer, "up"));
 	config_key_bind(INPUT_KEY_ESCAPE, config_get_value(config_buffer, "escape"));
+	
 }
 
 static int config_load(void) {

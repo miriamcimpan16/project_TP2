@@ -1,15 +1,16 @@
 #version 330 core
-out vec4 frag_color;
+in vec2 TexCoords;
+out vec4 color;
 
-in vec2 uvs;
+uniform sampler2D text;
+uniform vec3 textColor;
 
-uniform vec4 color;
-uniform sampler2D texture_id;
-
-void main() {
-    float alpha = texture(texture_id, uvs).r; // fonturile sunt în GL_RED, deci folosim `.r`
-    frag_color = vec4(color.rgb, color.a * alpha); // text cu alpha corect
+void main()
+{    
+    vec4 sampled = vec4(1.0, 1.0, 1.0, texture(text, TexCoords).r);
+    color = vec4(textColor, 1.0) * sampled;
 }
+
 
 
 

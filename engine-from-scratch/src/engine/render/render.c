@@ -11,8 +11,8 @@
 #include "render_internal.h"
 #include <ft2build.h>
 #include FT_FREETYPE_H
-FT_Library ft;
-FT_Face face;
+
+
 
 static f32 window_width = 1920;
 static f32 window_height = 1080;
@@ -32,146 +32,14 @@ static u32 vbo_batch;
 static u32 ebo_batch;
 static u32 shader_batch;
 static Array_List *list_batch;
-
-typedef struct {
-    GLuint texture_id;
-    vec2 size;
-    vec2 bearing;
-    u32 advance;
-} Character;
-
-Character characters[128]; // ASCII 0 - 127
-
-
-void render_text_sprite(Sprite_Sheet font_sprite_sheet,const char* text, float x, float y, vec4 color, u32 texture_slots[8]) {
-    const char* p;
-    float start_x = x;
-    for (p = text; *p; p++) {
-        if (*p == ' ') {
-            x += font_sprite_sheet.cell_width; // Spațiu
-            continue;
-        }
-
-        u8 c = (u8)*p;
-        u32 row = (c - 32) / 16; // 16 coloane per rând
-        u32 column = (c - 32) % 16;
-
-        vec2 position = { x, y };
-        render_sprite_sheet_frame(&font_sprite_sheet, row, column, position, false, color, texture_slots);
-
-        x += font_sprite_sheet.cell_width; // Avansează la dreapta
-    }
-}
-
-void render_init_freetype() {
-    if (FT_Init_FreeType(&ft)) {
-        printf("Eroare la initializarea FreeType!\n");
-        return;
-    }
-
-    if (FT_New_Face(ft, "C:\\Users\\Deborah\\OneDrive\\Desktop\\project\\engine-from-scratch\\shaders\\font.ttf", 0, &face)) {
-        printf("Eroare la incarcarea fontului!\n");
-        return;
-    }
-
-    FT_Set_Pixel_Sizes(face, 0, 48);
-
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); // Pentru texturi 1 byte/px
-
-    for (unsigned char c = 0; c < 128; c++) {
-        if (FT_Load_Char(face, c, FT_LOAD_RENDER)) {
-            printf("Eroare la incarcarea caracterului '%c'\n", c);
-            continue;
-        }
-
-        GLuint texture;
-        glGenTextures(1, &texture);
-		if (texture == 0) {
-			printf("Eroare la generarea texturii pentru caracterul '%c'\n", c);
-		}
-		
-        glBindTexture(GL_TEXTURE_2D, texture);
-		if (face->glyph->bitmap.buffer == NULL) {
-			printf("Eroare la încărcarea buffer-ului pentru caracterul '%c'\n", c);
-		}
-		
-        glTexImage2D(
-            GL_TEXTURE_2D,
-            0,
-            GL_RED,
-            face->glyph->bitmap.width,
-            face->glyph->bitmap.rows,
-            0,
-            GL_RED,
-            GL_UNSIGNED_BYTE,
-            face->glyph->bitmap.buffer
-        );
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-       
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-GLenum err = glGetError();
-if (err != GL_NO_ERROR) {
-    printf("Eroare OpenGL după glTexParameteri(): %d\n", err);
-}
-
-        characters[c].texture_id = texture;
-        characters[c].size[0] = face->glyph->bitmap.width;
-        characters[c].size[1] = face->glyph->bitmap.rows;
-        characters[c].bearing[0] = face->glyph->bitmap_left;
-        characters[c].bearing[1] = face->glyph->bitmap_top;
-        characters[c].advance = face->glyph->advance.x;
-    }
-
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-}
-
-void render_text(const char* text, float x, float y, vec4 color) {
-	glUseProgram(shader_default);
-    glUniform1i(glGetUniformLocation(shader_default, "text"), 0);
-
-
-    const char* p;
-    for (p = text; *p; p++) {
-        Character ch = characters[(unsigned char)*p];
-
-        float xpos = x + ch.bearing[0];
-        float ypos = y - (ch.size[1] - ch.bearing[1]);
-
-        vec2 size = { ch.size[0], ch.size[1] };
-        vec2 bottom_left = { xpos, ypos };
-
-        glBindTexture(GL_TEXTURE_2D, ch.texture_id);
-        append_quad(bottom_left, size, (void*)(intptr_t)ch.texture_id, color, 0);
-
-        x += (ch.advance >> 6); // de la 1/64 px la px
-    }
-	printf("[DEBUG] Called render_text: x = %f, y = %f\n", x, y);
-}
-
-void render_game_over(Sprite_Sheet font_sprite_sheet,u32 texture_slots[8]) {
-
-    render_text_sprite(font_sprite_sheet,"GAME OVER", 100, 200, (vec4){1.0, 0.0, 0.0, 1.0}, texture_slots);
-}
-
-
-void render_cleanup_freetype() {
-    FT_Done_Face(face);
-    FT_Done_FreeType(ft);
-}
-
-
+static u32 shader_text;
 SDL_Window *render_init(void) {
 	SDL_Window *window = render_init_window(window_width, window_height);
 
 	render_init_quad(&vao_quad, &vbo_quad, &ebo_quad);
 	render_init_batch_quads(&vao_batch, &vbo_batch, &ebo_batch);
 	render_init_line(&vao_line, &vbo_line);
-	render_init_shaders(&shader_default, &shader_batch, render_width, render_height);
+	render_init_shaders(&shader_default, &shader_batch,render_width, render_height);
 	render_init_color_texture(&texture_color);
 
 	glEnable(GL_BLEND);
@@ -211,7 +79,7 @@ static i32 try_insert_texture(u32 texture_slots[8], u32 texture_id) {
 }
 
 void render_begin(void) {
-	glClearColor(0.1, 0.1, 0.1, 1.0);
+	glClearColor(1.0, 1.0, 1.1, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	list_batch->len = 0;
@@ -395,7 +263,7 @@ void render_sprite_sheet_frame(Sprite_Sheet *sprite_sheet, f32 row, f32 column, 
 
     i32 texture_slot = try_insert_texture(texture_slots, sprite_sheet->texture_id);
     if (texture_slot == -1) {
-        // TODO: Flush buffer
+       
     }
 	append_quad(bottom_left, size, uvs, color, (f32)texture_slot);
 }
